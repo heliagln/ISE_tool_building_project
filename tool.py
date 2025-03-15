@@ -174,7 +174,7 @@ def main():
     non_sensitive_columns = [col for col in X_test.columns if col not in sensitive_columns]
 
     # 3. Calculate and print the Individual Discrimination Instance Ratio
-    idi_ratio, discrimination_samples = calculate_idi_ratio_tool(model, X_test, sensitive_columns, non_sensitive_columns)
+    idi_ratio, discrimination_samples = calculate_idi_ratio_tool(model, X_test, sensitive_columns, non_sensitive_columns, num_samples=500, num_seed=50)
     print(idi_ratio)
     print(f"IDI Ratio: {idi_ratio}")
 
