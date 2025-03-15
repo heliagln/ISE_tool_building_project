@@ -96,7 +96,7 @@ def main():
     model = keras.models.load_model(model_path)
 
     # 2. Define sensitive and non-sensitive columns
-    sensitive_columns = ['age']  # Example sensitive column(s)
+    sensitive_columns = ['age', 'gender', 'race']  # Example sensitive column(s)
     non_sensitive_columns = [col for col in X_test.columns if col not in sensitive_columns]
 
     # 3. Calculate and print the Individual Discrimination Instance Ratio
