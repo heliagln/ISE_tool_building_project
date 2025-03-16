@@ -10,7 +10,7 @@ from sklearn.preprocessing import LabelEncoder
 def load_and_preprocess_data(file_path):
     df = pd.read_csv(file_path)
     # Splitting the dataset into features and target
-    target_column = 'Class-label'# 'income'  # Modify the target column name if necessary
+    target_column = 'class'# 'income'  # Modify the target column name if necessary
     X = df.drop(columns=[target_column])  # Features (drop the target column)
     y = df[target_column]  # Target variable
     X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.3, random_state=42)
@@ -90,13 +90,13 @@ def calculate_idi_ratio_baseline(model, X_test, sensitive_columns, non_sensitive
 # 6. Main function
 def main():
     # 1. Load dataset and model
-    file_path = 'dataset/processed_adult.csv' # 'model/processed_kdd_cleaned.csv'  # Dataset path
-    model_path = 'DNN/model_processed_adult.h5'  # Model path
+    file_path = 'dataset/processed_communities_crime.csv' # 'model/processed_kdd_cleaned.csv'  # Dataset path
+    model_path = 'DNN/model_processed_communities_crime.h5'  # Model path
     X_train, X_test, y_train, y_test = load_and_preprocess_data(file_path)
     model = keras.models.load_model(model_path)
 
     # 2. Define sensitive and non-sensitive columns
-    sensitive_columns = ['age', 'gender', 'race']  # Example sensitive column(s)
+    sensitive_columns = ['Black','FemalePctDiv']  # Example sensitive column(s)
     non_sensitive_columns = [col for col in X_test.columns if col not in sensitive_columns]
 
     # 3. Calculate and print the Individual Discrimination Instance Ratio
