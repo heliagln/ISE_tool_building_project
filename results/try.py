@@ -1,5 +1,6 @@
 import sys
 import os
+import time
 import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sns
@@ -10,16 +11,13 @@ from sklearn.model_selection import train_test_split
 chemin_methodes = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
 sys.path.append(chemin_methodes)
 from lab4_solution import calculate_idi_ratio_baseline
-from tool import calculate_idi_ratio_tool
+from decision_tree import calculate_idi_ratio_tool
 
 datasets = pd.DataFrame({
     'name' : ['adult', 'compas_cleaned', 'law_school_cleaned', 'kdd_cleaned', 'dutch', 'credit', 'greman_cleaned'],
     'sensitive_attributes' : [['gender', 'race', 'age'], ['Sex', 'Race'], ['male', 'race'], ['sex', 'race'], ['sex', 'age'], ['SEX', 'EDUCATION', 'MARRIAGE'], ['PersonStatusSex','AgeInYears']],
     'target_label' : ['Class-label', 'Recidivism', 'pass_bar', 'income', 'occupation', 'class', 'CREDITRATING']
 })
-
-print(datasets)
-
 
 def load_and_preprocess_data(row):
     file_path = '../dataset/processed_' + row['name'] + '.csv' # 'model/processed_kdd_cleaned.csv'  # Dataset path
@@ -48,20 +46,21 @@ for index, row in datasets.iterrows():
     csv_file = os.path.join('result_csv', f"{row['name']}_results.csv")
 
     if not os.path.exists(csv_file):
-        df = pd.DataFrame(columns=['baseline', 'tool'])
+        df = pd.DataFrame(columns=['IDI_baseline','time_baseline', 'IDI_tool', 'time_tool'])
         df.to_csv(csv_file, index=False)
     
     for i in range(n):
+        start_baseline = time.perf_counter()
         idi_baseline = calculate_idi_ratio_baseline(model, X_test, sensitive_columns, non_sensitive_columns, num_samples=1000)
-        idi_tool, discrimination = calculate_idi_ratio_tool(model, X_test, sensitive_columns, non_sensitive_columns, num_samples = 1000, num_seed = 100)
+        end_baseline = time.perf_counter()
+        time_baseline = end_baseline - start_baseline
+        start_tool = time.perf_counter()
+        idi_tool = calculate_idi_ratio_tool(model, X_test, sensitive_columns, non_sensitive_columns, num_samples = 1000)
+        end_tool = time.perf_counter()
+        time_tool = end_tool - start_tool
         print(idi_baseline)
+        print(time_baseline)
         print(idi_tool)
-        df_csv = pd.DataFrame({ 'baseline' : [idi_baseline], 'tool' : [idi_tool]})
+        print(time_tool)
+        df_csv = pd.DataFrame({ 'IDI_baseline' : [idi_baseline], 'time_baseline' : [time_baseline], 'IDI_tool' : [idi_tool], 'time_tool' : [time_tool]})
         df_csv.to_csv(csv_file, mode='a', header=False, index=False)
-
-'''
-idi_ratio_baseline = calculate_idi_ratio_baseline(model, X_test, sensitive_columns, non_sensitive_columns, num_samples=1000)
-print(f"the result for baseline : {idi_ratio_baseline}")
-idi_ratio_tool, discrimination_samples = calculate_idi_ratio_tool(model, X_test, sensitive_columns, non_sensitive_columns, num_samples = 1000, num_seed = 100)
-print(f"the result for tool : {idi_ratio_tool}")
-'''

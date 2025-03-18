@@ -1,10 +1,7 @@
 import numpy as np
 import random
 import pandas as pd
-from sklearn.cluster import KMeans
-from sklearn.preprocessing import StandardScaler
 from sklearn.model_selection import train_test_split
-from sklearn.metrics import pairwise_distances
 from tensorflow import keras
 from sklearn.tree import DecisionTreeClassifier
 
@@ -12,7 +9,7 @@ from sklearn.tree import DecisionTreeClassifier
 def load_and_preprocess_data(file_path):
   df = pd.read_csv(file_path)
   # Splitting the dataset into features and target
-  target_column = 'Class-label'# 'income'  # Modify the target column name if necessary
+  target_column = 'Recidivism'# 'income'  # Modify the target column name if necessary
   X = df.drop(columns=[target_column])  # Features (drop the target column)
   y = df[target_column]  # Target variable
   X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.3, random_state=42)
@@ -22,7 +19,7 @@ def load_and_preprocess_data(file_path):
 # Draw some random samples (must be higher than num_samples) and slightly modify them
 def draw_samples(model, X_test, sensitive_columns, non_sensitive_columns, num_samples):
   # Prendre à peu près 1 quart du set
-  df_random = X_test.sample(n=int(num_samples*6), replace=True)
+  df_random = X_test.sample(n=int(len(X_test)), replace=True) # num_samples*6
   df_random = df_random.reset_index(drop=True)
   # Apply perturbation on non sensitive columns
   for index, sample in df_random.iterrows():
@@ -45,16 +42,7 @@ def analyze_threshold(sample_a, borne, feature_name, minmax, threshold):
     })
     borne.loc[feature_name, minmax] = threshold
     return series
-    # sample_b = sample_a.copy()
-    # sample_b[feature_name] = random.uniform(threshold, borne.loc[feature_name, minmax])
-    # predict_sample_b = (model.predict((np.array(sample_b)).reshape(1, -1)))[0][0]
-    
-    '''
-    if abs(predict_sample - predict_sample_b) >= 0.05:
-        return 1, [(sample_a, sample_b)]
-    else:
-        return 0, []'''
-    
+
 
 # random path
 def random_path(model, tree, X_test, sensitive_columns):
@@ -82,21 +70,7 @@ def random_path(model, tree, X_test, sensitive_columns):
             else:
                 series = analyze_threshold(sample_a, borne, feature_name, 'min', threshold)
                 df_path = pd.concat([df_path, series.to_frame().T], ignore_index= True)
-    return df_path          
-    '''
-    for node in node_indices:
-        feature_name = columns[tree.tree_.feature[node]]
-        threshold = tree.tree_.threshold[node]
-        if feature_name in sensitive_columns:
-            if sample_a[feature_name] <= threshold:
-                if_disc, sample_disc = analyze_threshold(model, sample_a, predict_sample, borne, feature_name, 'max', threshold)
-                disc_number += if_disc
-                disc_sample = disc_sample + sample_disc
-            else:
-                if_disc, sample_disc = analyze_threshold(model, sample_a, predict_sample, borne, feature_name, 'min', threshold)
-                disc_number += if_disc
-                disc_sample = disc_sample + sample_disc
-            tryout += 1'''
+    return df_path
     
 def collect_sample(row):
     return row['sample'].copy()
@@ -111,7 +85,7 @@ def modify_sample(row):
 
 
 # Calculate the IDI ratio
-def calculate_idi_ratio_tool(model, X_test, sensitive_columns, non_sensitive_columns, num_samples=1000, num_seed = 100, threshold=0.05):
+def calculate_idi_ratio_tool(model, X_test, sensitive_columns, non_sensitive_columns, num_samples=1000, threshold=0.05):
     # Draw sample
     df_random, prediction = draw_samples(model, X_test, sensitive_columns, non_sensitive_columns, 500)
     prediction_class = np.where((np.array(prediction))>=0.5, 1, 0)
@@ -120,14 +94,30 @@ def calculate_idi_ratio_tool(model, X_test, sensitive_columns, non_sensitive_col
     tree = DecisionTreeClassifier()
     tree.fit(df_random, prediction_class)
 
+    # is it dependant of sensible parameters
+    # Récupérer les indices des colonnes utilisées dans les nœuds
+    features_used = tree.tree_.feature
+
+    # Supprimer les valeurs -2 (indiquant les feuilles de l'arbre)
+    features_used = features_used[features_used != -2]
+
+    # Obtenir les indices uniques des colonnes utilisées
+    features_used = set(features_used)
+
+    columns = X_test.columns
+
+    sensible_nodes = [(columns[feature]) for feature in features_used if columns[feature] in sensitive_columns]
+    print(sensible_nodes)
     # extract paths
     df_path = pd.DataFrame(columns=['sample', 'feature_name', 'first_threshold', 'second_threshold', 'prediction'])
 
-    while len(df_path) < num_seed:
+    while len(df_path) < num_samples:
         df_result = random_path(model, tree, X_test, sensitive_columns)
         df_path = pd.concat([df_path, df_result], ignore_index=True)
+        # know advancement
+        print(len(df_path))
     
-    df_path = df_path.head(num_seed)
+    df_path = df_path.head(num_samples)
 
     # prediction
     array_for_prediction = np.stack(df_path['sample'].values)
@@ -135,39 +125,42 @@ def calculate_idi_ratio_tool(model, X_test, sensitive_columns, non_sensitive_col
 
     # needed information
     samples = df_path.apply(collect_sample, axis=1)
-    try_number = 0
-    number_discrimination = 0
-    discrimination_pairs = []
 
-    for i in range(int(num_samples/num_seed)):
-        df_modifed_samples = df_path.apply(modify_sample, axis=1)
-        modified_prediction = model.predict(np.array(df_modifed_samples))
-        pred_diff = abs(prediction - modified_prediction)
-        mask = (pred_diff > threshold)
-        indices = np.where(mask)[0]
-        number_discrimination += len(indices)
-        discrimination_pairs = discrimination_pairs + [(samples.iloc[i], df_modifed_samples.iloc[i]) for i in indices]
-        try_number += len(df_modifed_samples)
-    
-    return number_discrimination, try_number # discrimination_number / num_samples, discrimination_samples
+    # modify the sample thanks to the 
+    df_modifed_samples = df_path.apply(modify_sample, axis=1)
+
+    # Predict the new samples
+    modified_prediction = model.predict(np.array(df_modifed_samples))
+
+    # check for difference in prediction
+    pred_diff = abs(prediction - modified_prediction)
+    mask = (pred_diff > threshold)
+    indices = np.where(mask)[0]
+
+    # extract discriminatory information
+    number_discrimination = len(indices)
+    discrimination_pairs = [(samples.iloc[i], df_modifed_samples.iloc[i]) for i in indices]
+    try_number = len(df_modifed_samples)
+
+    return number_discrimination/ try_number
 
 # 6. Main function
 def main():
     # 1. Load dataset and model
-    file_path = 'dataset/processed_adult.csv' # 'model/processed_kdd_cleaned.csv'  # Dataset path
-    model_path = 'DNN/model_processed_adult.h5'  # Model path
+    file_path = 'dataset/processed_compas_cleaned.csv' # 'model/processed_kdd_cleaned.csv'  # Dataset path
+    model_path = 'DNN/model_processed_compas_cleaned.h5'  # Model path
     X_train, X_test, y_train, y_test = load_and_preprocess_data(file_path)
     X_test = X_test.astype('float64')
     model = keras.models.load_model(model_path)
 
     # 2. Define sensitive and non-sensitive columns
-    sensitive_columns = ['age', 'gender', 'race']  # Example sensitive column(s)
+    sensitive_columns = ['Sex', 'Race']  # Example sensitive column(s)
     non_sensitive_columns = [col for col in X_test.columns if col not in sensitive_columns]
 
     # 3. Calculate and print the Individual Discrimination Instance Ratio
-    disc, tryout = calculate_idi_ratio_tool(model, X_test, sensitive_columns, non_sensitive_columns, num_samples=500, num_seed=100)
-    print(f"number of tryout : {tryout} and number for discrimination : {disc}")
-    print(f"IDI Ratio: {disc/tryout}")
+    IDI_ratio = calculate_idi_ratio_tool(model, X_test, sensitive_columns, non_sensitive_columns, num_samples=200)
+    # print(f"number of tryout : {tryout} and number for discrimination : {disc}")
+    print(f"IDI Ratio: {IDI_ratio}")
 
 if __name__ == "__main__":
     main()

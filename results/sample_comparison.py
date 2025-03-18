@@ -25,7 +25,7 @@ non_sensitive_columns = [col for col in X_test.columns if col not in sensitive_c
 
 # Compare performance
 n = 10
-IDI_ratio_baseline = []
+
 IDI_ratio_tool = []
 
 for i in range(n):
@@ -52,4 +52,3 @@ sns.swarmplot(x="method used", y="IDI ratio", data=df_melted, color="black", siz
 
 plt.title("Comparison of the IDI ratio between the baseline and the tool")
 plt.show()
-
