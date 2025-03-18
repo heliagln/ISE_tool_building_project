@@ -14,7 +14,7 @@ from lab4_solution import calculate_idi_ratio_baseline
 from decision_tree import calculate_idi_ratio_tool
 
 datasets = pd.DataFrame({
-    'name' : ['adult', 'compas_cleaned', 'law_school_cleaned', 'kdd_cleaned', 'dutch', 'credit', 'greman_cleaned'],
+    'name' : ['adult', 'compas', 'law_school', 'kdd', 'dutch', 'credit', 'greman_cleaned'],
     'sensitive_attributes' : [['gender', 'race', 'age'], ['Sex', 'Race'], ['male', 'race'], ['sex', 'race'], ['sex', 'age'], ['SEX', 'EDUCATION', 'MARRIAGE'], ['PersonStatusSex','AgeInYears']],
     'target_label' : ['Class-label', 'Recidivism', 'pass_bar', 'income', 'occupation', 'class', 'CREDITRATING']
 })

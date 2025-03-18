@@ -1,5 +1,6 @@
 import pandas as pd
 import numpy as np
+import tensorflow as tf
 from tensorflow import keras
 from tensorflow.keras.models import load_model
 from sklearn.model_selection import train_test_split
@@ -72,7 +73,7 @@ def evaluate_discrimination(model, sample_a, sample_b, threshold=0.05, discrimin
 
 
 # 5. Calculate Individual Discrimination Instance Ratio (IDI ratio)
-def calculate_idi_ratio_baseline(model, X_test, sensitive_columns, non_sensitive_columns, num_samples=1000):
+def calculate_idi_ratio(model, X_test, sensitive_columns, non_sensitive_columns, num_samples=1000):
     discrimination_count = 0
 
     for _ in range(num_samples):
@@ -96,11 +97,11 @@ def main():
     model = keras.models.load_model(model_path)
 
     # 2. Define sensitive and non-sensitive columns
-    sensitive_columns = ['Black','FemalePctDiv']  # Example sensitive column(s)
+    sensitive_columns = ['Black', 'FemalePctDiv']  # Example sensitive column(s)
     non_sensitive_columns = [col for col in X_test.columns if col not in sensitive_columns]
 
     # 3. Calculate and print the Individual Discrimination Instance Ratio
-    idi_ratio = calculate_idi_ratio_baseline(model, X_test, sensitive_columns, non_sensitive_columns)
+    idi_ratio = calculate_idi_ratio(model, X_test, sensitive_columns, non_sensitive_columns)
     print(f"IDI Ratio: {idi_ratio}")
 
 
