@@ -90,14 +90,14 @@ def calculate_idi_ratio(model, X_test, sensitive_columns, non_sensitive_columns,
 
 # 6. Main function
 def main():
-    # 1. Load dataset and model
-    file_path = 'dataset/processed_communities_crime.csv' # 'model/processed_kdd_cleaned.csv'  # Dataset path
-    model_path = 'DNN/model_processed_communities_crime.h5'  # Model path
+    file_path = 'dataset/processed_credit.csv' # 'model/processed_kdd_cleaned.csv'  # Dataset path
+    model_path = 'DNN/model_processed_credit.h5'  # Model path
     X_train, X_test, y_train, y_test = load_and_preprocess_data(file_path)
+    X_test = X_test.astype('float64')
     model = keras.models.load_model(model_path)
 
     # 2. Define sensitive and non-sensitive columns
-    sensitive_columns = ['Black', 'FemalePctDiv']  # Example sensitive column(s)
+    sensitive_columns = ['SEX', 'EDUCATION', 'MARRIAGE']  # Example sensitive column(s)
     non_sensitive_columns = [col for col in X_test.columns if col not in sensitive_columns]
 
     # 3. Calculate and print the Individual Discrimination Instance Ratio

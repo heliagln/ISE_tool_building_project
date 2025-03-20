@@ -8,7 +8,7 @@ from sklearn.model_selection import train_test_split
 
 
 # Import baseline and tool
-chemin_methodes = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
+chemin_methodes = os.path.abspath(os.path.join(os.path.dirname(__file__), '..','..'))
 sys.path.append(chemin_methodes)
 # from lab4_solution import load_and_preprocess_data  # Remplace par le nom réel de la méthode
 from decision_tree import calculate_idi_ratio_tool  # Remplace par le nom réel de la méthode
@@ -25,8 +25,8 @@ def load_and_preprocess_data(file_path):
   return X_train, X_test, y_train, y_test
 
 # load model and dataset
-file_path = '../dataset/processed_adult.csv' # 'model/processed_kdd_cleaned.csv'  # Dataset path
-model_path = '../DNN/model_processed_adult.h5'  # Model path
+file_path = '../../dataset/processed_adult.csv' # 'model/processed_kdd_cleaned.csv'  # Dataset path
+model_path = '../../DNN/model_processed_adult.h5'  # Model path
 X_train, X_test, y_train, y_test = load_and_preprocess_data(file_path)
 X_test = X_test.astype('float64')
 model = keras.models.load_model(model_path)
@@ -36,28 +36,33 @@ sensitive_columns = ['age', 'gender', 'race']  # Example sensitive column(s)
 non_sensitive_columns = [col for col in X_test.columns if col not in sensitive_columns]
 
 # See for different size of seeds
-n = 10
-discrimination_1500 = []
-discrimination_1000 = []
-discrimination_500 = []
+n = 100
+num_samples_0 = 500
+num_samples_1 = 1000
+num_samples_2 = 1500
+num_samples_3 = 2000
 
-for i in range(n):
-  idi_ratio_1500 = calculate_idi_ratio_tool(model, X_test, sensitive_columns, non_sensitive_columns, num_samples=1500)
-  discrimination_1500.append(idi_ratio_1500)
-  idi_ratio_1000 = calculate_idi_ratio_tool(model, X_test, sensitive_columns, non_sensitive_columns, num_samples=1000)
-  discrimination_1000.append(idi_ratio_1000)
-  idi_ratio_500 = calculate_idi_ratio_tool(model, X_test, sensitive_columns, non_sensitive_columns, num_samples=500)
-  discrimination_500.append(idi_ratio_500)
+df = pd.DataFrame()
 
-print(f"mean for 1500 : {sum(discrimination_1500)/len(discrimination_1500)} ")
-print(f"mean for 1000 : {sum(discrimination_1000)/len(discrimination_1000)} ")
-print(f"mean for 500 : {sum(discrimination_500)/len(discrimination_500)} ")
-graph = {
-    '500 samples': discrimination_500,
-    '1000 samples': discrimination_1000,
-    '1500 samples':discrimination_1500,
-}
-df = pd.DataFrame(graph)
+def make_runs(df, num_runs, num_samples):
+  IDI_list = []
+  for i in range(num_runs):
+    idi_ratio = calculate_idi_ratio_tool(model, X_test, sensitive_columns, non_sensitive_columns, num_samples=num_samples, num_seed=200, num_training=6000)
+    IDI_list.append(idi_ratio)
+  print(f"mean for {num_samples} : {sum(IDI_list)/len(IDI_list)} ")
+  df[f'{num_samples} samples'] = IDI_list
+  return df
+
+df = make_runs(df, n, num_samples_0)
+df = make_runs(df, n, num_samples_1)
+df = make_runs(df, n, num_samples_2)
+df = make_runs(df, n, num_samples_3)
+
+csv_file = os.path.join('result_sample.csv')
+df.to_csv(csv_file, index=False)
+
+df_melted = df.melt(var_name="number of seeds", value_name="IDI ratio")
+
 df_melted = df.melt(var_name="number of samples", value_name="IDI ratio")
 
 # plot

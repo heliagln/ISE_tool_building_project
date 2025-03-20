@@ -9,26 +9,37 @@ from sklearn.tree import DecisionTreeClassifier
 def load_and_preprocess_data(file_path):
   df = pd.read_csv(file_path)
   # Splitting the dataset into features and target
-  target_column = 'class'# 'income'  # Modify the target column name if necessary
+  target_column = 'Class-label'# 'income'  # Modify the target column name if necessary
   X = df.drop(columns=[target_column])  # Features (drop the target column)
   y = df[target_column]  # Target variable
   X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.3, random_state=42)
 
   return X_train, X_test, y_train, y_test
 
-# Draw some random samples (must be higher than num_samples) and slightly modify them
-def draw_samples(model, X_test, sensitive_columns, non_sensitive_columns, num_samples):
-  # Prendre à peu près 1 quart du set
-  df_random = X_test.sample(n=int(len(X_test)), replace=True) # num_samples*6
-  df_random = df_random.reset_index(drop=True)
-  # Apply perturbation on non sensitive columns
-  for index, sample in df_random.iterrows():
+# Modify samples
+def modify_training_samples(row, X_test, non_sensitive_columns):
     for col in non_sensitive_columns:
         if col in X_test.columns:  # Ensure the column exists
             min_val = X_test[col].min()
             max_val = X_test[col].max()
             perturbation = np.random.uniform(-0.1 * (max_val - min_val), 0.1 * (max_val - min_val))  # Small perturbation
-            sample[col] = np.clip(sample[col] + perturbation, min_val, max_val)
+            row[col] = np.clip(row[col] + perturbation, min_val, max_val)
+    return row
+
+# Draw some random samples (must be higher than num_samples) and slightly modify them
+def draw_samples(model, X_test, sensitive_columns, non_sensitive_columns, num_samples, num_training):
+  # Prendre à peu près 1 quart du set
+  df_random = X_test.sample(n=int(num_training), replace=True) # num_samples*6
+  df_random = df_random.reset_index(drop=True)
+  # Apply perturbation on non sensitive columns
+  '''
+  for index, sample in df_random.iterrows():
+    for col in  X_test.columns:  # Ensure the column exists
+        min_val = X_test[col].min()
+        max_val = X_test[col].max()
+        perturbation = np.random.uniform(-0.1 * (max_val - min_val), 0.1 * (max_val - min_val))  # Small perturbation
+        sample[col] = np.clip(sample[col] + perturbation, min_val, max_val)'''
+  df_random = df_random.apply(lambda row: modify_training_samples(row, X_test, non_sensitive_columns), axis=1)
   # Prédit tous les tests
   prediction = pd.DataFrame(model.predict(np.array(df_random)), index=df_random.index, columns=['prediction'])
   return df_random, prediction
@@ -45,7 +56,7 @@ def analyze_threshold(sample_a, borne, feature_name, minmax, threshold):
 
 
 # random path
-def random_path(model, tree, X_test, sensitive_columns):
+def random_path(model, tree, X_test, sensitive_columns, non_sensitive_columns):
     sample = X_test.sample(n=1) # X_test.iloc[np.random.choice(len(X_test))]
 
     decision_path = tree.decision_path(sample)
@@ -59,6 +70,13 @@ def random_path(model, tree, X_test, sensitive_columns):
     
     sample_a = sample.iloc[0]
     columns = X_test.columns
+    for col in non_sensitive_columns:
+        if col in columns:
+            min_val = X_test[col].min()
+            max_val = X_test[col].max()
+            perturbation = np.random.uniform(-0.1 * (max_val - min_val), 0.1 * (max_val - min_val))
+            sample_a[col] = np.clip(sample_a[col] + perturbation, min_val, max_val)
+    
     sensible_nodes = [(columns[tree.tree_.feature[node]], tree.tree_.threshold[node]) for node in node_indices if columns[tree.tree_.feature[node]] in sensitive_columns]
     df_path = pd.DataFrame(columns=['sample', 'feature_name', 'first_threshold', 'second_threshold'])
 
@@ -85,9 +103,9 @@ def modify_sample(row):
 
 
 # Calculate the IDI ratio
-def calculate_idi_ratio_tool(model, X_test, sensitive_columns, non_sensitive_columns, num_samples=1000, num_seed = 100, threshold=0.05):
+def calculate_idi_ratio_tool(model, X_test, sensitive_columns, non_sensitive_columns, num_samples=1000, num_seed = 100, threshold=0.05, num_training=6000):
     # Draw sample
-    df_random, prediction = draw_samples(model, X_test, sensitive_columns, non_sensitive_columns, 500)
+    df_random, prediction = draw_samples(model, X_test, sensitive_columns, non_sensitive_columns, num_samples, num_training)
     prediction_class = np.where((np.array(prediction))>=0.5, 1, 0)
 
     # decision tree training
@@ -116,7 +134,7 @@ def calculate_idi_ratio_tool(model, X_test, sensitive_columns, non_sensitive_col
         df_path = pd.DataFrame(columns=['sample', 'feature_name', 'first_threshold', 'second_threshold', 'prediction'])
 
         while len(df_path) < num_seed:
-            df_result = random_path(model, tree, X_test, sensitive_columns)
+            df_result = random_path(model, tree, X_test, sensitive_columns, non_sensitive_columns)
             df_path = pd.concat([df_path, df_result], ignore_index=True)
             # know advancement
             # print(len(df_path))
@@ -153,18 +171,18 @@ def calculate_idi_ratio_tool(model, X_test, sensitive_columns, non_sensitive_col
 # 6. Main function
 def main():
     # 1. Load dataset and model
-    file_path = 'dataset/processed_communities_crime.csv' # 'model/processed_kdd_cleaned.csv'  # Dataset path
-    model_path = 'DNN/model_processed_communities_crime.h5'  # Model path
+    file_path = 'dataset/processed_adult.csv' # 'model/processed_kdd_cleaned.csv'  # Dataset path
+    model_path = 'DNN/model_processed_adult.h5'  # Model path
     X_train, X_test, y_train, y_test = load_and_preprocess_data(file_path)
     X_test = X_test.astype('float64')
     model = keras.models.load_model(model_path)
 
     # 2. Define sensitive and non-sensitive columns
-    sensitive_columns = ['Black', 'FemalePctDiv']  # Example sensitive column(s)
+    sensitive_columns = ['race', 'gender', 'age']  # Example sensitive column(s)
     non_sensitive_columns = [col for col in X_test.columns if col not in sensitive_columns]
 
     # 3. Calculate and print the Individual Discrimination Instance Ratio
-    IDI_ratio = calculate_idi_ratio_tool(model, X_test, sensitive_columns, non_sensitive_columns, num_samples=1000)
+    IDI_ratio = calculate_idi_ratio_tool(model, X_test, sensitive_columns, non_sensitive_columns, num_samples=1000, num_seed=200, num_training=6000)
     # print(f"number of tryout : {tryout} and number for discrimination : {disc}")
     print(f"IDI Ratio: {IDI_ratio}")
 
