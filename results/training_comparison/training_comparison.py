@@ -47,10 +47,10 @@ df = pd.DataFrame()
 def make_runs(df, num_runs, num_train):
   IDI_list = []
   for i in range(num_runs):
-    idi_ratio = calculate_idi_ratio_tool(model, X_test, sensitive_columns, non_sensitive_columns, num_samples=1000, num_seed=200, num_training=num_train)
+    idi_ratio = calculate_idi_ratio_tool(model, X_test, sensitive_columns, non_sensitive_columns, num_samples=1000, num_training=num_train)
     IDI_list.append(idi_ratio)
   print(f"mean for {num_train} : {sum(IDI_list)/len(IDI_list)} ")
-  df[f'{num_train} samples'] = IDI_list
+  df[f'{num_train} training data'] = IDI_list
   return df
 
 df = make_runs(df, n, num_training_0)

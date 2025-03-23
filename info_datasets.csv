@@ -1,0 +1,9 @@
+name,sensitive_attributes,target_label
+adult,"['gender', 'race', 'age']",Class-label
+compas,"['Sex', 'Race']",Recidivism
+law_school,"['male', 'race']",pass_bar
+kdd,"['sex', 'race']",income
+dutch,"['sex', 'age']",occupation
+credit,"['SEX', 'EDUCATION', 'MARRIAGE']",class
+communities_crime,"['Black', 'FemalePctDiv']",class
+german,"['PersonStatusSex', 'AgeInYears']",CREDITRATING

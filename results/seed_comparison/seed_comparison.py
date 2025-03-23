@@ -36,7 +36,7 @@ sensitive_columns = ['age', 'gender', 'race']  # Example sensitive column(s)
 non_sensitive_columns = [col for col in X_test.columns if col not in sensitive_columns]
 
 # See for different size of seeds
-n = 80
+n = 100
 num_seed_0 = 100
 num_seed_1 = 150
 num_seed_2 = 200
@@ -50,7 +50,7 @@ def make_runs(df, num_runs, num_seed):
     idi_ratio = calculate_idi_ratio_tool(model, X_test, sensitive_columns, non_sensitive_columns, num_samples=1000, num_seed=num_seed, num_training=6000)
     IDI_list.append(idi_ratio)
   print(f"mean for {num_seed} : {sum(IDI_list)/len(IDI_list)} ")
-  df[f'{num_seed} samples'] = IDI_list
+  df[f'{num_seed} seeds'] = IDI_list
   return df
 
 df = make_runs(df, n, num_seed_0)

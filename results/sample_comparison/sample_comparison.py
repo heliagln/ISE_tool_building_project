@@ -47,7 +47,7 @@ df = pd.DataFrame()
 def make_runs(df, num_runs, num_samples):
   IDI_list = []
   for i in range(num_runs):
-    idi_ratio = calculate_idi_ratio_tool(model, X_test, sensitive_columns, non_sensitive_columns, num_samples=num_samples, num_seed=200, num_training=6000)
+    idi_ratio = calculate_idi_ratio_tool(model, X_test, sensitive_columns, non_sensitive_columns, num_samples=num_samples, num_training=6000)
     IDI_list.append(idi_ratio)
   print(f"mean for {num_samples} : {sum(IDI_list)/len(IDI_list)} ")
   df[f'{num_samples} samples'] = IDI_list

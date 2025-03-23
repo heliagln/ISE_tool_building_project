@@ -19,6 +19,7 @@ datasets = pd.DataFrame({
     'target_label' : ['Class-label', 'Recidivism', 'pass_bar', 'income', 'occupation', 'class', 'CREDITRATING']
 })
 
+
 def load_and_preprocess_data(row):
     file_path = '../dataset/processed_' + row['name'] + '.csv' # 'model/processed_kdd_cleaned.csv'  # Dataset path
     model_path = '../DNN/model_processed_'+ row['name'] + '.h5'  # Model path
