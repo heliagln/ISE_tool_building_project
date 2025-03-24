@@ -38,33 +38,41 @@ def analyze_threshold(sample_a, borne, feature_name, minmax, threshold):
     borne.loc[feature_name, minmax] = threshold
     return series
 
-def find_random_discrimination(tree, X_test, sensitive_columns, non_sensitive_columns, num_samples):
-    sample = X_test.sample(n=num_samples, replace=True) # X_test.iloc[np.random.choice(len(X_test))]
 
-    sample = sample.apply(lambda row: modify_training_samples(row, X_test, non_sensitive_columns), axis=1)
+# random path
+def random_path(model, tree, X_test, sensitive_columns, non_sensitive_columns):
+    sample = X_test.sample(n=1) # X_test.iloc[np.random.choice(len(X_test))]
+
+    sample_a = sample.iloc[0].copy()
+    columns = X_test.columns
+    for col in non_sensitive_columns:
+        if col in columns:
+            min_val = X_test[col].min()
+            max_val = X_test[col].max()
+            perturbation = np.random.uniform(-0.1 * (max_val - min_val), 0.1 * (max_val - min_val))
+            sample_a[col] = np.clip(sample_a[col] + perturbation, min_val, max_val)
+    sample.iloc[0] = sample_a
 
     decision_path = tree.decision_path(sample)
 
-    columns = X_test.columns
-    df_path = pd.DataFrame(columns=['sample', 'feature_name', 'first_threshold', 'second_threshold'])
-    for i in range(len(sample)):
-        sample_a = sample.iloc[i]
-        borne = pd.DataFrame({
-            'max' : [X_test[col].max() for col in sensitive_columns],
-            'min' : [X_test[col].min() for col in sensitive_columns]
-            }, index=sensitive_columns)
-        node_indices = decision_path.indices[decision_path.indptr[i]:decision_path.indptr[i+1]]
+    node_indices = decision_path.indices[decision_path.indptr[0]:decision_path.indptr[1]]
 
-        sensible_nodes = [(columns[tree.tree_.feature[node]], tree.tree_.threshold[node]) for node in node_indices if columns[tree.tree_.feature[node]] in sensitive_columns]
-        
-        if sensible_nodes != []:
-            for feature_name, threshold in sensible_nodes:
-                if sample_a[feature_name] <= threshold:
-                    series = analyze_threshold(sample_a, borne, feature_name, 'max', threshold)
-                    df_path = pd.concat([df_path, series.to_frame().T], ignore_index= True)
-                else:
-                    series = analyze_threshold(sample_a, borne, feature_name, 'min', threshold)
-                    df_path = pd.concat([df_path, series.to_frame().T], ignore_index= True)
+    borne = pd.DataFrame({
+        'max' : [X_test[col].max() for col in sensitive_columns],
+        'min' : [X_test[col].min() for col in sensitive_columns]
+        }, index=sensitive_columns)
+    
+    sensible_nodes = [(columns[tree.tree_.feature[node]], tree.tree_.threshold[node]) for node in node_indices if columns[tree.tree_.feature[node]] in sensitive_columns]
+    df_path = pd.DataFrame(columns=['sample', 'feature_name', 'first_threshold', 'second_threshold'])
+
+    if sensible_nodes != []:
+        for feature_name, threshold in sensible_nodes:
+            if sample_a[feature_name] <= threshold:
+                series = analyze_threshold(sample_a, borne, feature_name, 'max', threshold)
+                df_path = pd.concat([df_path, series.to_frame().T], ignore_index= True)
+            else:
+                series = analyze_threshold(sample_a, borne, feature_name, 'min', threshold)
+                df_path = pd.concat([df_path, series.to_frame().T], ignore_index= True)
     return df_path
     
 def collect_sample(row):
@@ -77,6 +85,7 @@ def modify_sample(row):
     new_value = random.uniform(first_threshold, second_threshold)
     sample[col] = new_value
     return sample
+
 
 # Calculate the IDI ratio
 def calculate_idi_ratio_tool(model, X_test, sensitive_columns, non_sensitive_columns, num_samples=1000, threshold=0.05, num_training=6000):
@@ -113,9 +122,9 @@ def calculate_idi_ratio_tool(model, X_test, sensitive_columns, non_sensitive_col
     else:
         # extract paths
         df_path = pd.DataFrame(columns=['sample', 'feature_name', 'first_threshold', 'second_threshold', 'prediction'])
-        
+
         while len(df_path) < num_samples:
-            df_result = find_random_discrimination(tree, X_test, sensitive_columns, non_sensitive_columns, num_samples - len(df_path))
+            df_result = random_path(model, tree, X_test, sensitive_columns, non_sensitive_columns)
             df_path = pd.concat([df_path, df_result], ignore_index=True)
             # know advancement
             print(f"\rProgression : {(len(df_path)/num_samples)*100}%", end='', flush=True)
@@ -152,7 +161,7 @@ def calculate_idi_ratio_tool(model, X_test, sensitive_columns, non_sensitive_col
 # 6. Main function
 def main():
     # 1. Load dataset and model
-    dataset_name = 'compas'
+    dataset_name = 'german'
     file_path = f'dataset/processed_{dataset_name}.csv' # 'model/processed_kdd_cleaned.csv'  # Dataset path
     model_path = f'DNN/model_processed_{dataset_name}.h5'  # Model path
     df = pd.read_csv(file_path)
@@ -174,7 +183,7 @@ def main():
 
     # 3. Calculate and print the Individual Discrimination Instance Ratio
     start = time.perf_counter()
-    IDI_ratio = calculate_idi_ratio_tool(model, X_test, sensitive_columns, non_sensitive_columns, num_samples=1000, num_training=8000)
+    IDI_ratio = calculate_idi_ratio_tool(model, X_test, sensitive_columns, non_sensitive_columns, num_samples=1000, num_training=6000)
     end = time.perf_counter()
     print(f"runtime : {end-start}")
     # print(f"number of tryout : {tryout} and number for discrimination : {disc}")
