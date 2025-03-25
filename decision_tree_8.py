@@ -23,7 +23,7 @@ def draw_samples(model, X_test, sensitive_columns, non_sensitive_columns, num_sa
   df_random = X_test.sample(n=int(num_training), replace=True) # num_samples*6
   df_random = df_random.reset_index(drop=True)
   # Apply perturbation on non sensitive columns
-  df_random = df_random.apply(lambda row: modify_training_samples(row, X_test, non_sensitive_columns), axis=1)
+  # df_random = df_random.apply(lambda row: modify_training_samples(row, X_test, non_sensitive_columns), axis=1)
   # Prédit tous les tests
   prediction = pd.DataFrame(model.predict(np.array(df_random)), index=df_random.index, columns=['prediction'])
   return df_random, prediction
@@ -38,8 +38,31 @@ def analyze_threshold(sample_a, borne, feature_name, minmax, threshold):
     borne.loc[feature_name, minmax] = threshold
     return series
 
-def find_random_discrimination(tree, X_test, sensitive_columns, non_sensitive_columns, num_samples):
-    sample = X_test.sample(n=num_samples, replace=True) # X_test.iloc[np.random.choice(len(X_test))]
+def preselection(tree, X_test, sensitive_columns):
+    decision_path = tree.decision_path(X_test)
+
+    sensitive_indices = [X_test.columns.get_loc(col) for col in sensitive_columns]
+
+    sensitive_nodes = np.where(np.isin(tree.tree_.feature, sensitive_indices))[0]
+
+    # Find samples passing through these nodes
+    selected_samples = pd.DataFrame(columns=X_test.columns)
+    for i in range(len(X_test)):  # Loop through samples
+        path_nodes = decision_path.indices[decision_path.indptr[i]:decision_path.indptr[i+1]]
+        sensible = [node for node in path_nodes if node in sensitive_nodes]
+        if sensible != []:# all(node in path_nodes for node in sensitive_nodes):
+            selected_samples.loc[len(selected_samples)] = X_test.iloc[i]
+
+    return selected_samples
+
+
+def find_random_discrimination(tree, X_test, preselected_samples, sensitive_columns, non_sensitive_columns, num_samples):
+    '''
+    preselected_half = preselected_samples.sample(n=int(num_samples/2), replace=True)
+    X_test_half = X_test.sample(n=int(num_samples), replace=True) # X_test.iloc[np.random.choice(len(X_test))]
+
+    sample = pd.concat([preselected_half, X_test_half], ignore_index=True)'''
+    sample = preselected_samples.sample(n=num_samples, replace=True)
 
     sample = sample.apply(lambda row: modify_training_samples(row, X_test, non_sensitive_columns), axis=1)
 
@@ -114,8 +137,14 @@ def calculate_idi_ratio_tool(model, X_test, sensitive_columns, non_sensitive_col
         # extract paths
         df_path = pd.DataFrame(columns=['sample', 'feature_name', 'first_threshold', 'second_threshold', 'prediction'])
         
+        preselected_samples = preselection(tree, X_test, sensitive_columns)
+
+        # take 10% of the X_test to diversify
+        # add_diversity = X_test.sample(n=int(len(X_test)*20/100), replace=False)
+        # preselected_samples = pd.concat([preselected_samples, add_diversity], ignore_index=True)
+
         while len(df_path) < num_samples:
-            df_result = find_random_discrimination(tree, X_test, sensitive_columns, non_sensitive_columns, num_samples)
+            df_result = find_random_discrimination(tree, X_test, preselected_samples, sensitive_columns, non_sensitive_columns, num_samples)
             df_path = pd.concat([df_path, df_result], ignore_index=True)
             # know advancement
             print(f"\rProgression : {(len(df_path)/num_samples)*100}%", end='', flush=True)
