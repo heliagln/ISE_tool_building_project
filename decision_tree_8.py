@@ -181,7 +181,7 @@ def calculate_idi_ratio_tool(model, X_test, sensitive_columns, non_sensitive_col
 # 6. Main function
 def main():
     # 1. Load dataset and model
-    dataset_name = 'adult'
+    dataset_name = 'compas'
     file_path = f'dataset/processed_{dataset_name}.csv' # 'model/processed_kdd_cleaned.csv'  # Dataset path
     model_path = f'DNN/model_processed_{dataset_name}.h5'  # Model path
     df = pd.read_csv(file_path)
@@ -203,7 +203,7 @@ def main():
 
     # 3. Calculate and print the Individual Discrimination Instance Ratio
     start = time.perf_counter()
-    IDI_ratio = calculate_idi_ratio_tool(model, X_test, sensitive_columns, non_sensitive_columns, num_samples=1000, num_training=6000)
+    IDI_ratio = calculate_idi_ratio_tool(model, X_test, sensitive_columns, non_sensitive_columns, num_samples=1000, num_training=8000)
     end = time.perf_counter()
     print(f"runtime : {end-start}")
     # print(f"number of tryout : {tryout} and number for discrimination : {disc}")
