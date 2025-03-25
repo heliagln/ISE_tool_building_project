@@ -59,7 +59,7 @@ def main():
                 end_baseline = time.perf_counter()
                 time_baseline = end_baseline - start_baseline
                 start_tool = time.perf_counter()
-                idi_tool = calculate_idi_ratio_tool(model, X_test, sensitive_columns, non_sensitive_columns, num_samples = 1000, num_training=6000)
+                idi_tool = calculate_idi_ratio_tool(model, X_test, sensitive_columns, non_sensitive_columns, num_samples = 1000, num_training=8000)
                 end_tool = time.perf_counter()
                 time_tool = end_tool - start_tool
                 print(f"IDI ratio for baseline : {idi_baseline}")
