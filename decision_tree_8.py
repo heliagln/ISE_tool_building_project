@@ -137,7 +137,7 @@ def calculate_idi_ratio_tool(model, X_test, sensitive_columns, non_sensitive_col
         # extract paths
         df_path = pd.DataFrame(columns=['sample', 'feature_name', 'first_threshold', 'second_threshold', 'prediction'])
         
-        preselected_samples = preselection(tree, X_test, sensitive_columns)
+        preselected_samples = preselection(tree, pd.concat([X_test, df_random], ignore_index=True), sensitive_columns)
 
         # take 10% of the X_test to diversify
         # add_diversity = X_test.sample(n=int(len(X_test)*20/100), replace=False)
@@ -181,7 +181,7 @@ def calculate_idi_ratio_tool(model, X_test, sensitive_columns, non_sensitive_col
 # 6. Main function
 def main():
     # 1. Load dataset and model
-    dataset_name = 'kdd'
+    dataset_name = 'adult'
     file_path = f'dataset/processed_{dataset_name}.csv' # 'model/processed_kdd_cleaned.csv'  # Dataset path
     model_path = f'DNN/model_processed_{dataset_name}.h5'  # Model path
     df = pd.read_csv(file_path)
