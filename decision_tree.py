@@ -100,7 +100,7 @@ def modify_sample(row):
     return sample
 
 # Calculate the IDI ratio
-def calculate_idi_ratio_tool(model, X_test, sensitive_columns, non_sensitive_columns, num_samples=1000, threshold=0.05, num_training=6000):
+def calculate_idi_ratio_tool(model, X_test, sensitive_columns, non_sensitive_columns, num_samples=1000, threshold=0.05, num_training=8000):
     # Draw sample
     df_random, prediction = draw_samples(model, X_test, sensitive_columns, non_sensitive_columns, num_samples, num_training)
     prediction_class = np.where((np.array(prediction))>=0.5, 1, 0)
@@ -169,7 +169,7 @@ def calculate_idi_ratio_tool(model, X_test, sensitive_columns, non_sensitive_col
 # 6. Main function
 def main():
     # 1. Load dataset and model
-    dataset_name = 'law_school'
+    dataset_name = 'kdd'
     file_path = f'dataset/processed_{dataset_name}.csv' # 'model/processed_kdd_cleaned.csv'  # Dataset path
     model_path = f'DNN/model_processed_{dataset_name}.h5'  # Model path
     df = pd.read_csv(file_path)
@@ -194,7 +194,6 @@ def main():
     IDI_ratio = calculate_idi_ratio_tool(model, X_test, sensitive_columns, non_sensitive_columns, num_samples=1000, num_training=8000)
     end = time.perf_counter()
     print(f"runtime : {end-start}")
-    # print(f"number of tryout : {tryout} and number for discrimination : {disc}")
     print(f"IDI Ratio: {IDI_ratio}")
 
 if __name__ == "__main__":

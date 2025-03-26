@@ -44,7 +44,7 @@ def main():
 
     # Foreach datasets
     for index, row in info_dataset.iterrows():
-        if row['name'] != 'adult' and row['name'] != 'compas' and row['name'] != 'law_school':
+        if row['name'] != 'compas' and row['name'] != 'law_school':
             X_test, model, sensitive_columns, non_sensitive_columns = load_and_preprocess_data(row)
 
             csv_file = os.path.join(f"{row['name']}_results.csv")
