@@ -1,55 +1,72 @@
 import sys
 import os
 import pandas as pd
+import ast
+import time
 import matplotlib.pyplot as plt
 import seaborn as sns
 from tensorflow import keras
+from sklearn.model_selection import train_test_split
 
 # Import baseline and tool
 chemin_methodes = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
 sys.path.append(chemin_methodes)
-from lab4_solution import load_and_preprocess_data
 from lab4_solution import calculate_idi_ratio_baseline
 from decision_tree import calculate_idi_ratio_tool
 
-# Load model and dataset
-file_path = '../dataset/processed_adult.csv' # 'model/processed_kdd_cleaned.csv'  # Dataset path
-model_path = '../DNN/model_processed_adult.h5'  # Model path
-X_train, X_test, y_train, y_test = load_and_preprocess_data(file_path)
-X_test = X_test.astype('float64')
-model = keras.models.load_model(model_path)
 
-# Define sensitive and non-sensitive columns
-sensitive_columns = ['age']  # Example sensitive column(s)
-non_sensitive_columns = [col for col in X_test.columns if col not in sensitive_columns]
+def load_and_preprocess_data(row):
+    file_path = '../dataset/processed_' + row['name'] + '.csv' # 'model/processed_kdd_cleaned.csv'  # Dataset path
+    model_path = '../DNN/model_processed_'+ row['name'] + '.h5'  # Model path
+    df = pd.read_csv(file_path)
+    # Splitting the dataset into features and target
+    target_column = row['target_label']# 'income'  # Modify the target column name if necessary
+    X = df.drop(columns=[target_column])  # Features (drop the target column)
+    y = df[target_column]  # Target variable
+    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.3, random_state=42)
 
-# Compare performance
-n = 10
-IDI_ratio_baseline = []
-IDI_ratio_tool = []
+    X_test = X_test.astype('float64')
+    model = keras.models.load_model(model_path)
 
-for i in range(n):
-    idi_ratio_baseline = calculate_idi_ratio_baseline(model, X_test, sensitive_columns, non_sensitive_columns, num_samples=1000)
-    IDI_ratio_baseline.append(idi_ratio_baseline)
-    idi_ratio_tool, discrimination_samples = calculate_idi_ratio_tool(model, X_test, sensitive_columns, non_sensitive_columns, num_samples = 1000)
-    IDI_ratio_tool.append(idi_ratio_tool)
+    # Define sensitive and non-sensitive columns
+    sensitive_columns = row['sensitive_attributes']  # Example sensitive column(s)
+    non_sensitive_columns = [col for col in X_test.columns if col not in sensitive_columns]
 
-print(f"mean for baseline : {sum(IDI_ratio_baseline)/len(IDI_ratio_baseline)} ")
-print(f"mean for tool : {sum(IDI_ratio_tool)/len(IDI_ratio_tool)} ")
+    return X_test, model, sensitive_columns, non_sensitive_columns
 
-graph = {
-    'baseline': IDI_ratio_baseline,
-    'tool': IDI_ratio_tool,
-}
+def main():
+    # Load information on dataset
+    info_dataset = pd.read_csv('../info_datasets.csv')
+    info_dataset['sensitive_attributes'] = (info_dataset['sensitive_attributes']).apply(ast.literal_eval)
 
-df = pd.DataFrame(graph)
-df_melted = df.melt(var_name="method used", value_name="IDI ratio")
+    # Number of runs
+    n = 10
 
-# plot
-plt.figure(figsize=(8, 6))
-sns.boxplot(x="method used", y="IDI ratio", data=df_melted, width=0.4, palette="Set2")
-sns.swarmplot(x="method used", y="IDI ratio", data=df_melted, color="black", size=6, alpha=0.7)
+    # Foreach datasets
+    for index, row in info_dataset.iterrows():
+        X_test, model, sensitive_columns, non_sensitive_columns = load_and_preprocess_data(row)
 
-plt.title("Comparison of the IDI ratio between the baseline and the tool")
-plt.show()
+        csv_file = os.path.join(f"performance_comparison/{row['name']}_results.csv")
 
+        if not os.path.exists(csv_file):
+            df = pd.DataFrame(columns=['IDI_baseline','time_baseline', 'IDI_tool', 'time_tool'])
+            df.to_csv(csv_file, index=False)
+        
+        for i in range(n):
+            start_baseline = time.perf_counter()
+            idi_baseline = calculate_idi_ratio_baseline(model, X_test, sensitive_columns, non_sensitive_columns, num_samples=1000)
+            end_baseline = time.perf_counter()
+            time_baseline = end_baseline - start_baseline
+            start_tool = time.perf_counter()
+            idi_tool = calculate_idi_ratio_tool(model, X_test, sensitive_columns, non_sensitive_columns, num_samples = 1000, num_training=8000)
+            end_tool = time.perf_counter()
+            time_tool = end_tool - start_tool
+            print(f"IDI ratio for baseline : {idi_baseline}")
+            print(f"runtime for the baseline : {time_baseline}")
+            print(f"IDI ratio for tool : {idi_tool}")
+            print(f"runtime for tool : {time_tool}")
+            df_csv = pd.DataFrame({ 'IDI_baseline' : [idi_baseline], 'time_baseline' : [time_baseline], 'IDI_tool' : [idi_tool], 'time_tool' : [time_tool]})
+            df_csv.to_csv(csv_file, mode='a', header=False, index=False)
+
+if __name__ == "__main__":
+    main()

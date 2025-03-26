@@ -16,7 +16,7 @@ def main():
 
     for name in info_dataset['name']:
         # Get the data for this dataset
-        df_dataset = pd.read_csv(f'{name}_results.csv')
+        df_dataset = pd.read_csv(f'performance_comparison/{name}_results.csv')
 
         # extract p-values
         if name != 'communities_crime':
@@ -40,7 +40,7 @@ def main():
         sns.swarmplot(x="method", y="IDI ratio", data=df_melted, color="black", size=6, alpha=0.7)
 
         plt.title(f"Comparison of the IDI ratio as a function of the method used for the dataset {name}")
-        plt.savefig(f'../IDI_ratio_plt/figure_{name}.png')
+        plt.savefig(f'IDI_ratio_plt/figure_{name}.png')
         plt.close()
 
 
