@@ -8,7 +8,7 @@ import seaborn as sns
 
 def main():
     # Load information on dataset
-    info_dataset = pd.read_csv('../../info_datasets.csv')
+    info_dataset = pd.read_csv('../info_datasets.csv')
     info_dataset['sensitive_attributes'] = (info_dataset['sensitive_attributes']).apply(ast.literal_eval)
 
     # Concatenate all data
