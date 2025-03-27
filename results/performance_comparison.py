@@ -16,13 +16,14 @@ from decision_tree import calculate_idi_ratio_tool
 
 
 def load_and_preprocess_data(row):
-    file_path = '../dataset/processed_' + row['name'] + '.csv' # 'model/processed_kdd_cleaned.csv'  # Dataset path
-    model_path = '../DNN/model_processed_'+ row['name'] + '.h5'  # Model path
+    file_path = '../dataset/processed_' + row['name'] + '.csv' 
+    model_path = '../DNN/model_processed_'+ row['name'] + '.h5' 
     df = pd.read_csv(file_path)
-    # Splitting the dataset into features and target
-    target_column = row['target_label']# 'income'  # Modify the target column name if necessary
-    X = df.drop(columns=[target_column])  # Features (drop the target column)
-    y = df[target_column]  # Target variable
+
+    # Splitting the dataset into attributes and class
+    target_column = row['target_label']
+    X = df.drop(columns=[target_column])
+    y = df[target_column]
     X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.3, random_state=42)
 
     X_test = X_test.astype('float64')
