@@ -181,7 +181,7 @@ def calculate_idi_ratio_tool(model, X_test, sensitive_columns, non_sensitive_col
 # Main function
 def main():
     # Load dataset and model
-    dataset_name = 'kdd'
+    dataset_name = 'adult'
     file_path = f'dataset/processed_{dataset_name}.csv' 
     model_path = f'DNN/model_processed_{dataset_name}.h5' 
     df = pd.read_csv(file_path)
